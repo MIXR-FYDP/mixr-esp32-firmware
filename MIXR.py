@@ -1,0 +1,53 @@
+# Hardware Defininitons
+
+# UART
+PROG_UART = 0
+STM_ESP_UART = 2
+
+# SD Card
+SD_CLK = 14
+SD_CMD = 15
+SD_D0 = 2
+SD_D1 = 4
+SD_D2 = 12
+SD_D3 = 13
+
+# I2C1 - Power Board
+I2C1_SCL = 22
+I2C1_SDA = 21
+I2C1_PE_INT = 26
+
+# I2C2 - User Interface Board
+I2C2_SCL = 23
+I2C2_SDA = 19
+I2C2_PE_INT = 18
+
+# Misc IOs
+POWER_BUTTON = 36
+nSD_CARD_DETECTED = 39
+MONITOR_5V = 34
+MONITOR_48V = 35
+DSP_SD_CARD_ACCESS_EN = 25
+DEBUG_LED = 27
+
+# Software Constants
+# UART
+STM_ESP_UART_BAUD = 115200
+
+# SD Card
+# SD slot 1 and 4-bit bus-width
+SD_SLOT = 1
+SD_BUS_WIDTH = 4
+
+# I2C1
+# PWR PE (A2, A1, A0) = 000
+I2C1_PWR_I2C_PE_ADDR = 0x20
+I2C1_BAT_FUEL_GAUGE_ADDR = 0x6C
+
+# I2C2
+# UI PE (A2, A1, A0) = 001
+I2C2_UI_I2C_PE_ADDR = 0x21
+
+# Dividers
+MONITOR_5V_RATIO = 2
+MONITOR_48V_RATIO = 24.66516
