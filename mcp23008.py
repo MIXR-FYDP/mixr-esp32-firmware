@@ -1,5 +1,5 @@
 from machine import I2C
-import MIXR
+from machine import Pin
 
 # I2C Speeds
 SPEED_NORMAL = 100000
@@ -22,13 +22,16 @@ REG_OLAT = 0x0A
 NUM_GPIO = 8
 
 
-class mcp23008():
-    def __init__(self, scl, sda, addr, interrupt, speed=SPEED_NORMAL):
-        self.interrupt = interrupt
+class mcp23008:
+    def __init__(self, scl, sda, addr, interrupt=None, speed=SPEED_NORMAL):
+        self.interrupt = Pin(interrupt, Pin.IN, None)
+        self.interrupt.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
         self.addr = addr
-        self.i2c = I2C(id=-1, scl=scl, sda=sda, freq=speed)
-        self.i2c.init()
+        self.i2c = I2C(1, scl=Pin(scl), sda=Pin(sda), freq=speed)
 
+        # Create a read and write buffer (1 byte each)
+        self.read_buffer = bytearray(1)
+        self.write_buffer = bytearray(1)
         # MCP23008 Configuration
         # SEQOP: Disable - 1
         # DISSLW: Enable - 0
@@ -36,16 +39,19 @@ class mcp23008():
         # ODR: Open Drain - 1
         # INTPOL: Active low - 0
 
-        # Get config reg
-        print(self.i2c.readfrom_mem(addr=self.addr, REG_IOCON, nbytes=1))
-        config = bytearray(1)
-        config[0] = 0x2C
-        self.i2c.writeto_mem(addr=self.addr, REG_IOCON, buf=config)
-        print(self.i2c.readfrom_mem(addr=self.addr, REG_IOCON, nbytes=1))
+        # Set config reg
+        self.write_buffer[0] = 0x2C
+        self.i2c.writeto_mem(self.addr, REG_IOCON, self.write_buffer)
 
-        # Create a read buffer (1 byte)
-        self.read_buffer = bytearray(1)
-        self.write_buf = bytearray(1)
+        # Set default values to 0 (active high inputs)
+        self.write_buffer[0] = 0x00
+        self.i2c.writeto_mem(self.addr, REG_DEFVAL, self.write_buffer)
+
+        # Disable pull-up resistors
+        self.i2c.writeto_mem(self.addr, REG_GPPU, self.write_buffer)
+        print("MCP23008 Initialized...")
+
+        self.input_int_reg = 0
 
     def validate_channel(self, channel):
         if channel < 0 or channel > NUM_GPIO:
@@ -53,29 +59,49 @@ class mcp23008():
         return True
 
     def set_io_dir(self, list_input_pins, list_output_pins):
-        for pin in list_input_pins, list_output_pins:
-            if not validate_channel(pin):
+        for pin in list_input_pins:
+            if not self.validate_channel(pin):
                 return -1
 
-        io_dir = 0x00
+        for pin in list_output_pins:
+            if not self.validate_channel(pin):
+                return -1
+
+        self.write_buffer[0] = 0x00
+
         for input_pin in list_input_pins:
-            io_dir = io_dir | (1 << input_pin)
+            self.write_buffer[0] = self.write_buffer[0] | (1 << input_pin)
 
+        # Enable interrupt on all input pins
+        self.i2c.writeto_mem(self.addr, REG_GPINT_EN, self.write_buffer)
+
+        # Compare all input pins to the default values
+        self.i2c.writeto_mem(self.addr, REG_INTCON, self.write_buffer)
+
+        # Set output pins
         for output_pin in list_output_pins:
-            io_dir = io_dir & ~(1 << output_pin)
-
-        direction = bytearray[1]
-        direction[0] = io_dir
-        self.i2c.writeto_mem(addr=self.addr, REG_IODIR, buf=io_dir)
+            self.write_buffer[0] = self.write_buffer[0] & ~(1 << output_pin)
+        self.i2c.writeto_mem(self.addr, REG_IODIR, self.write_buffer)
 
     def set_io_state(self, channel, state):
-        if not validate_channel(self, channel):
+        if not self.validate_channel(channel):
             return -1
-        self.write_buf[0] = self.i2c.readfrom_mem(addr=self.addr, REG_GPIO, nbytes=1)
-        print(self.write_buf[0])
+        self.read_buffer = self.i2c.readfrom_mem(self.addr, REG_GPIO, 1)
+        self.write_buffer[0] = self.read_buffer[0]
         if state:
-            self.write_buf[0] = self.write_buf[0] | (1 << channel)
+            self.write_buffer[0] = self.write_buffer[0] | (1 << channel)
         else:
-            self.write_buf[0] = self.write_buf[0] & ~(1 << channel)
-        self.i2c.writeto_mem(addr=self.addr, REG_GPIO, buf=self.write_buf)
+            self.write_buffer[0] = self.write_buffer[0] & ~(1 << channel)
+        self.i2c.writeto_mem(self.addr, REG_GPIO, self.write_buffer)
 
+    def get_input_state(self, channel):
+        if not self.validate_channel(channel):
+            return -1
+
+        self.read_buffer = self.i2c.readfrom_mem(self.addr, REG_GPIO, 1)
+        return bool(self.read_buffer[0] | (1 << channel))
+
+    def irq_handler(self, pin):
+        # Get the pins that set the interrupt
+        self.read_buffer = self.i2c.readfrom_mem(self.addr, REG_INTF, 1)
+        self.input_int_reg = self.read_buffer[0]
