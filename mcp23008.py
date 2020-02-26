@@ -1,9 +1,6 @@
 from machine import I2C
 from machine import Pin
 
-# I2C Speeds
-SPEED_NORMAL = 100000
-SPEED_FAST = 400000
 
 # Registers
 REG_IODIR = 0x00
@@ -23,12 +20,13 @@ NUM_GPIO = 8
 
 
 class mcp23008:
-    def __init__(self, scl, sda, addr, interrupt=None, speed=SPEED_NORMAL):
+    def __init__(self, scl, sda, addr, interrupt=None, speed=MIXR.I2C_SPEED_NORMAL):
         self.interrupt = Pin(interrupt, Pin.IN, None)
         self.interrupt.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
         self.addr = addr
-        self.i2c = I2C(1, scl=Pin(scl), sda=Pin(sda), freq=speed)
+        self.i2c = I2C(scl=Pin(scl), sda=Pin(sda), freq=speed)
 
+        print(self.i2c.scan())
         # Create a read and write buffer (1 byte each)
         self.read_buffer = bytearray(1)
         self.write_buffer = bytearray(1)
