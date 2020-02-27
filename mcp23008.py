@@ -1,5 +1,6 @@
 from machine import I2C
 from machine import Pin
+from MIXR import I2C_SPEED_NORMAL
 
 
 # Registers
@@ -20,9 +21,9 @@ NUM_GPIO = 8
 
 
 class mcp23008:
-    def __init__(self, scl, sda, addr, interrupt=None, speed=MIXR.I2C_SPEED_NORMAL):
+    def __init__(self, scl, sda, addr, interrupt=None, speed=I2C_SPEED_NORMAL):
         self.interrupt = Pin(interrupt, Pin.IN, None)
-        self.interrupt.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
+        self.interrupt.irq(trigger=Pin.IRQ_RISING, handler=self.irq_handler)
         self.addr = addr
         self.i2c = I2C(scl=Pin(scl), sda=Pin(sda), freq=speed)
 
@@ -30,15 +31,18 @@ class mcp23008:
         # Create a read and write buffer (1 byte each)
         self.read_buffer = bytearray(1)
         self.write_buffer = bytearray(1)
+
         # MCP23008 Configuration
+        # Bits 7, 6 - 0 0 
         # SEQOP: Disable - 1
         # DISSLW: Enable - 0
         # HAEN: Enable  - 1
-        # ODR: Open Drain - 1
-        # INTPOL: Active low - 0
+        # ODR: Active Driver - 0
+        # INTPOL: Active high - 1
+        # Bit 0 - 0
 
         # Set config reg
-        self.write_buffer[0] = 0x2C
+        self.write_buffer[0] = 0x2A
         self.i2c.writeto_mem(self.addr, REG_IOCON, self.write_buffer)
 
         # Set default values to 0 (active high inputs)

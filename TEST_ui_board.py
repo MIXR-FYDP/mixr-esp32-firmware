@@ -43,13 +43,21 @@ pwr_int.irq(trigger=Pin.IRQ_RISING, handler=pwr_button_irq)
 
 # Setup loop
 # Start a software timer to poll the button queue every 100ms
-tim = Timer(-1)
-tim.init(period=250, mode=Timer.PERIODIC, callback=check_buttons)
+# tim = Timer(-1)
+# tim.init(period=250, mode=Timer.PERIODIC, callback=check_buttons)
+
+for pin in list_output_pins:
+    i2c_pe.set_io_state(pin, 1)
 
 while True:
-    for pin in list_output_pins:
-        i2c_pe.set_io_state(pin, 1)
-    time.sleep(0.5)
-    for pin in list_output_pins:
-        i2c_pe.set_io_state(pin, 0)
-    time.sleep(0.5)
+    # for pin in list_output_pins:
+    #     i2c_pe.set_io_state(pin, 1)
+    # time.sleep(2)
+    # for pin in list_output_pins:
+    #     i2c_pe.set_io_state(pin, 0)
+    # time.sleep(2)
+    print(i2c_pe.input_int_reg)
+
+    if i2c_pe.input_int_reg != 0:
+        print("BUTTON PRESSED!!!")
+        i2c_pe.input_int_reg = 0
